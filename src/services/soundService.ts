@@ -173,10 +173,55 @@ class SoundService {
   }
 
   /**
+   * Resonant Om vibration (Earth frequency ~136.1 Hz with warm harmonics)
+   */
+  public playOm() {
+    if (this.volume <= 0) return;
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(this.volume * 0.85, now);
+      masterGain.connect(ctx.destination);
+
+      // 136.1 Hz is the sacred Earth / Om frequency
+      const harmonics = [
+        { freq: 136.1, gain: 0.8, decay: 5.5 }, // Fundamental C#3
+        { freq: 272.2, gain: 0.45, decay: 4.5 }, // Octave
+        { freq: 408.3, gain: 0.25, decay: 3.8 }, // Fifth
+        { freq: 544.4, gain: 0.12, decay: 3.0 }, // Double octave
+      ];
+
+      harmonics.forEach(({ freq, gain, decay }) => {
+        const osc = ctx.createOscillator();
+        const oscGain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        oscGain.gain.setValueAtTime(0.001, now);
+        oscGain.gain.linearRampToValueAtTime(gain, now + 0.18);
+        oscGain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+
+        osc.connect(oscGain);
+        oscGain.connect(masterGain);
+
+        osc.start(now);
+        osc.stop(now + decay);
+      });
+    } catch (e) {
+      console.warn("Om audio failed:", e);
+    }
+  }
+
+  /**
    * Plays selected chime / alert sound
    */
   public playSound(type: ChimeType) {
     switch (type) {
+      case 'om':
+        this.playOm();
+        break;
       case 'beep':
         this.playBeep();
         break;

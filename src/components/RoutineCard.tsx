@@ -89,6 +89,13 @@ export const RoutineCard: React.FC<RoutineCardProps> = ({
             </button>
           </div>
 
+          {/* Sanskrit Title if present */}
+          {routine.sanskritTitle && (
+            <p className="font-serif text-xs font-semibold text-amber-300/90 tracking-wide mb-0.5">
+              {routine.sanskritTitle}
+            </p>
+          )}
+
           {/* Title */}
           <h3 className="text-[19px] font-bold text-white tracking-tight leading-snug">
             {routine.title}

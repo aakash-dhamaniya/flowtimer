@@ -1,4 +1,4 @@
-export type ChimeType = 'bell' | 'chime' | 'beep' | 'gong' | 'singing-bowl' | 'crystal-bell' | 'none';
+export type ChimeType = 'om' | 'bell' | 'chime' | 'beep' | 'gong' | 'singing-bowl' | 'crystal-bell' | 'none';
 
 export type StageType = 'stage' | 'repeat';
 export type RepeatMode = 'count' | 'unlimited';
@@ -19,13 +19,42 @@ export interface Stage {
 export interface Routine {
   id: string;
   title: string;
+  sanskritTitle?: string;
   description?: string;
+  category?: string;
   stages: Stage[];
   createdAt: number;
   updatedAt: number;
   isFavorite?: boolean;
   completionCount?: number; // Total number of times completed
   lastCompletedAt?: number; // Timestamp of latest completion
+}
+
+export type ProgramCategory = 
+  | 'all'
+  | 'kundalini' 
+  | 'memory' 
+  | 'vitality' 
+  | 'sleep' 
+  | 'quick';
+
+export interface PreparedProgram {
+  id: string;
+  title: string;
+  sanskritTitle?: string;
+  subtitle: string;
+  description: string;
+  category: ProgramCategory;
+  categoryLabel: string;
+  badge: string;
+  accentColor: string; // 'amber' | 'purple' | 'emerald' | 'blue' | 'rose' | 'indigo'
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
+  bestTime: string;
+  chakra?: string;
+  mudra?: string;
+  benefits: string[];
+  precautions?: string[];
+  stages: Stage[];
 }
 
 export interface UserSettings {
@@ -40,3 +69,4 @@ export interface UserSettings {
 }
 
 export type PlayerMode = 'idle' | 'prep' | 'running' | 'paused' | 'completed';
+

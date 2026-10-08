@@ -580,6 +580,12 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
               </span>
             )}
 
+            {currentRoutine.sanskritTitle && (
+              <p className="font-serif text-sm font-semibold text-amber-300/90 tracking-wider mb-1">
+                {currentRoutine.sanskritTitle}
+              </p>
+            )}
+
             <h2 className="text-3xl font-extrabold text-white tracking-tight leading-tight uppercase font-sans">
               {activeStep.title}
             </h2>

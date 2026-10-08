@@ -83,6 +83,7 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
   initialRoutine,
 }) => {
   const [title, setTitle] = useState('');
+  const [sanskritTitle, setSanskritTitle] = useState('');
   const [stages, setStages] = useState<Stage[]>([]);
   const [completionCount, setCompletionCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +92,12 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
     if (isOpen) {
       if (initialRoutine) {
         setTitle(initialRoutine.title);
+        setSanskritTitle(initialRoutine.sanskritTitle || '');
         setStages(JSON.parse(JSON.stringify(initialRoutine.stages)));
         setCompletionCount(initialRoutine.completionCount || 0);
       } else {
         setTitle('');
+        setSanskritTitle('');
         setStages([DEFAULT_NEW_STAGE('Stage 1', 300)]);
         setCompletionCount(0);
       }
@@ -162,6 +165,7 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
     const routineToSave: Routine = {
       id: initialRoutine?.id || 'routine-' + Date.now().toString(36),
       title: title.trim(),
+      sanskritTitle: sanskritTitle.trim() || undefined,
       stages: stages.map((s) => ({ ...s, title: s.title.trim() })),
       createdAt: initialRoutine?.createdAt || Date.now(),
       updatedAt: Date.now(),
@@ -235,6 +239,20 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
             />
             <Edit3 className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
+        </div>
+
+        {/* Sanskrit Title Field (Optional) */}
+        <div className="bg-[#111520] border border-white/[0.08] rounded-2xl p-4">
+          <label className="block font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            SANSKRIT TITLE / MANTRA (OPTIONAL)
+          </label>
+          <input
+            type="text"
+            value={sanskritTitle}
+            onChange={(e) => setSanskritTitle(e.target.value)}
+            placeholder="e.g., कुण्डलिनी जागरण or स्मृति वर्धक साधना"
+            className="w-full bg-[#192030] border border-white/[0.08] focus:border-amber-500/50 rounded-xl px-4 py-3 text-sm font-serif font-medium text-amber-300 placeholder-slate-500 outline-none transition-all"
+          />
         </div>
 
         {/* Routine Completion Count Field */}
