@@ -354,8 +354,23 @@ export const RepeatNodeInput: React.FC<RepeatNodeInputProps> = ({
                   -
                 </button>
 
-                <div className="font-mono text-xs font-bold text-amber-300 px-1.5 w-10 text-center">
-                  {child.durationSeconds}s
+                <div className="flex items-center bg-[#111520] px-1 py-0.5 rounded border border-white/[0.08]">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={child.durationSeconds.toString()}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                      handleUpdateChildStage(cIdx, {
+                        ...child,
+                        durationSeconds: Math.max(1, isNaN(num) ? 1 : num),
+                      });
+                    }}
+                    className="w-7 bg-transparent font-mono text-xs font-bold text-amber-300 text-center outline-none tabular-nums"
+                  />
+                  <span className="text-[10px] text-amber-400/80 font-mono pr-0.5">s</span>
                 </div>
 
                 <button

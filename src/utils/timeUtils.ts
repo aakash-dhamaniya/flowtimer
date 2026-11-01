@@ -1,4 +1,4 @@
-import { Stage } from "../types/meditation";
+import { Routine, Stage } from "../types/meditation";
 
 /**
  * Formats seconds into MM:SS or HH:MM:SS format.
@@ -78,6 +78,53 @@ export function calculateTotalDuration(stages: Stage[]): number {
     const info = getNodeDuration(stage);
     return acc + info.duration;
   }, 0);
+}
+
+/**
+ * Returns comprehensive duration info for a routine, taking whole-routine looping into account.
+ */
+export function getRoutineDurationInfo(routine: Routine): {
+  displayDuration: string;
+  totalSeconds: number;
+  isUnlimited: boolean;
+  isChainLoop: boolean;
+  loopMode: 'none' | 'unlimited' | 'time_limit';
+  baseCycleSeconds: number;
+} {
+  const baseCycleSeconds = calculateTotalDuration(routine.stages);
+  const stageUnlimited = isRoutineUnlimited(routine.stages);
+  const loopMode = routine.routineLoopMode || 'none';
+
+  if (loopMode === 'unlimited' || stageUnlimited) {
+    return {
+      displayDuration: '∞ Unlimited',
+      totalSeconds: baseCycleSeconds,
+      isUnlimited: true,
+      isChainLoop: loopMode === 'unlimited',
+      loopMode: 'unlimited',
+      baseCycleSeconds,
+    };
+  }
+
+  if (loopMode === 'time_limit' && routine.routineLoopDurationSeconds) {
+    return {
+      displayDuration: formatDurationHuman(routine.routineLoopDurationSeconds),
+      totalSeconds: routine.routineLoopDurationSeconds,
+      isUnlimited: false,
+      isChainLoop: true,
+      loopMode: 'time_limit',
+      baseCycleSeconds,
+    };
+  }
+
+  return {
+    displayDuration: formatDurationHuman(baseCycleSeconds),
+    totalSeconds: baseCycleSeconds,
+    isUnlimited: false,
+    isChainLoop: false,
+    loopMode: 'none',
+    baseCycleSeconds,
+  };
 }
 
 /**

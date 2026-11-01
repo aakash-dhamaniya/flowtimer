@@ -44,6 +44,8 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
   const [currentCycle, setCurrentCycle] = useState(1);
   // Total cycles completed across all repeat nodes in this session
   const [totalCyclesCompleted, setTotalCyclesCompleted] = useState(0);
+  // Whole-routine loop cycle counter (1-indexed)
+  const [routineLoopCycle, setRoutineLoopCycle] = useState(1);
 
   // Initial stage setup
   const getInitialSeconds = (): number => {
@@ -69,13 +71,17 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
   const currentStageIndexRef = useRef(0);
   const nestedStageIndexRef = useRef(0);
   const currentCycleRef = useRef(1);
+  const routineLoopCycleRef = useRef(1);
   const secondsRemainingRef = useRef(getInitialSeconds());
+  const totalElapsedRef = useRef(0);
   const routineRef = useRef(routine);
 
   currentStageIndexRef.current = currentStageIndex;
   nestedStageIndexRef.current = nestedStageIndex;
   currentCycleRef.current = currentCycle;
+  routineLoopCycleRef.current = routineLoopCycle;
   secondsRemainingRef.current = secondsRemaining;
+  totalElapsedRef.current = totalElapsed;
   routineRef.current = routine;
 
   const currentTopNode: Stage | undefined = routine.stages[currentStageIndex];
@@ -96,6 +102,9 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
 
   // Up Next step calculation
   const getNextStepInfo = (): { title: string; durationSeconds: number; subtitle?: string } | null => {
+    const isChainLooping =
+      routine.routineLoopMode === 'unlimited' || routine.routineLoopMode === 'time_limit';
+
     if (isRepeatNode && nestedList.length > 0) {
       if (nestedStageIndex + 1 < nestedList.length) {
         // Next step within same cycle
@@ -127,6 +136,19 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
                   : nextTop.durationSeconds,
               subtitle: 'Next Phase',
             };
+          } else if (isChainLooping) {
+            const firstNode = routine.stages[0];
+            return {
+              title:
+                firstNode.type === 'repeat' && firstNode.nestedStages?.length
+                  ? firstNode.nestedStages[0].title
+                  : firstNode.title,
+              durationSeconds:
+                firstNode.type === 'repeat' && firstNode.nestedStages?.length
+                  ? firstNode.nestedStages[0].durationSeconds
+                  : firstNode.durationSeconds,
+              subtitle: `Chain Loop (Cycle ${routineLoopCycle + 1})`,
+            };
           }
           return null;
         }
@@ -141,6 +163,19 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
               ? nextTop.nestedStages[0].durationSeconds
               : nextTop.durationSeconds,
           subtitle: nextTop.type === 'repeat' ? 'Repeat Loop' : 'Next Stage',
+        };
+      } else if (isChainLooping) {
+        const firstNode = routine.stages[0];
+        return {
+          title:
+            firstNode.type === 'repeat' && firstNode.nestedStages?.length
+              ? firstNode.nestedStages[0].title
+              : firstNode.title,
+          durationSeconds:
+            firstNode.type === 'repeat' && firstNode.nestedStages?.length
+              ? firstNode.nestedStages[0].durationSeconds
+              : firstNode.durationSeconds,
+          subtitle: `Chain Loop (Cycle ${routineLoopCycle + 1})`,
         };
       }
       return null;
@@ -241,10 +276,71 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
           triggerStepStart(nextNode);
         }
       } else {
+        // End of top-level stages reached. Check routine-level loop mode!
+        const loopMode = routineRef.current.routineLoopMode || 'none';
+
+        if (loopMode === 'unlimited') {
+          const nextChainCycle = routineLoopCycleRef.current + 1;
+          setRoutineLoopCycle(nextChainCycle);
+          routineLoopCycleRef.current = nextChainCycle;
+          soundService.playSound('chime');
+          if (!ttsMuted) {
+            speechService.speak(`Chain loop cycle ${nextChainCycle}`);
+          }
+          setCurrentStageIndex(0);
+          currentStageIndexRef.current = 0;
+          setNestedStageIndex(0);
+          nestedStageIndexRef.current = 0;
+          setCurrentCycle(1);
+          currentCycleRef.current = 1;
+
+          const firstNode = routineRef.current.stages[0];
+          if (firstNode.type === 'repeat' && firstNode.nestedStages?.length) {
+            const firstSub = firstNode.nestedStages[0];
+            setSecondsRemaining(firstSub.durationSeconds);
+            triggerStepStart(firstSub);
+          } else {
+            setSecondsRemaining(firstNode.durationSeconds);
+            triggerStepStart(firstNode);
+          }
+          return;
+        }
+
+        if (loopMode === 'time_limit') {
+          const limitSeconds = routineRef.current.routineLoopDurationSeconds || 300;
+          if (totalElapsedRef.current < limitSeconds) {
+            const nextChainCycle = routineLoopCycleRef.current + 1;
+            setRoutineLoopCycle(nextChainCycle);
+            routineLoopCycleRef.current = nextChainCycle;
+            soundService.playSound('chime');
+            if (!ttsMuted) {
+              speechService.speak(`Chain loop cycle ${nextChainCycle}`);
+            }
+            setCurrentStageIndex(0);
+            currentStageIndexRef.current = 0;
+            setNestedStageIndex(0);
+            nestedStageIndexRef.current = 0;
+            setCurrentCycle(1);
+            currentCycleRef.current = 1;
+
+            const firstNode = routineRef.current.stages[0];
+            if (firstNode.type === 'repeat' && firstNode.nestedStages?.length) {
+              const firstSub = firstNode.nestedStages[0];
+              setSecondsRemaining(firstSub.durationSeconds);
+              triggerStepStart(firstSub);
+            } else {
+              setSecondsRemaining(firstNode.durationSeconds);
+              triggerStepStart(firstNode);
+            }
+            return;
+          }
+        }
+
+        // No loop or time limit reached
         finishRoutine();
       }
     },
-    [finishRoutine, triggerStepStart]
+    [finishRoutine, triggerStepStart, ttsMuted]
   );
 
   // Initial countdown or immediate start
@@ -416,7 +512,22 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
     if (!isPlaying || isPrep || isFinished) return;
 
     const interval = setInterval(() => {
-      setTotalElapsed((prev) => prev + 1);
+      setTotalElapsed((prev) => {
+        const nextElapsed = prev + 1;
+        totalElapsedRef.current = nextElapsed;
+
+        // If time_limit routine loop mode is active, check limit
+        const loopMode = routineRef.current.routineLoopMode || 'none';
+        if (loopMode === 'time_limit') {
+          const limit = routineRef.current.routineLoopDurationSeconds || 300;
+          if (nextElapsed >= limit) {
+            finishRoutine();
+            return nextElapsed;
+          }
+        }
+
+        return nextElapsed;
+      });
 
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
@@ -428,7 +539,7 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying, isPrep, isFinished, advanceToNextStep]);
+  }, [isPlaying, isPrep, isFinished, advanceToNextStep, finishRoutine]);
 
   const handleTogglePlayPause = () => {
     setIsPlaying((prev) => !prev);
@@ -440,9 +551,12 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
     setNestedStageIndex(0);
     setCurrentCycle(1);
     setTotalCyclesCompleted(0);
+    setRoutineLoopCycle(1);
+    routineLoopCycleRef.current = 1;
     const initialSec = getInitialSeconds();
     setSecondsRemaining(initialSec);
     setTotalElapsed(0);
+    totalElapsedRef.current = 0;
     setIsPlaying(true);
     const firstNode = routine.stages[0];
     const firstStep =
@@ -470,7 +584,7 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
       <RoutineComplete
         routine={currentRoutine}
         totalElapsedSeconds={totalElapsed}
-        totalCyclesCompleted={totalCyclesCompleted}
+        totalCyclesCompleted={totalCyclesCompleted + (routineLoopCycle - 1)}
         onDone={onExit}
         onRepeat={handleRestartRoutine}
         onUpdateCompletionCount={handleAdjustCompletion}
@@ -563,6 +677,23 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
 
           {/* Active Stage Header & Cycle Pill */}
           <div className="text-center pt-1">
+            {/* Chain Loop Banner Pill */}
+            {routine.routineLoopMode === 'unlimited' && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold uppercase tracking-wider mb-2 mr-1">
+                <Repeat className="w-3.5 h-3.5 text-emerald-400 animate-spin-slow" />
+                <span>CHAIN LOOP: CYCLE {routineLoopCycle} (∞)</span>
+              </div>
+            )}
+            {routine.routineLoopMode === 'time_limit' && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[11px] font-bold uppercase tracking-wider mb-2 mr-1">
+                <Repeat className="w-3.5 h-3.5 text-amber-400" />
+                <span>
+                  CHAIN CYCLE {routineLoopCycle} • {formatTimeDigits(totalElapsed)} / {formatTimeDigits(routine.routineLoopDurationSeconds || 300)}
+                </span>
+              </div>
+            )}
+
+            {/* Stage / Repeat Node indicator */}
             {isRepeatNode ? (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[11px] font-bold uppercase tracking-wider mb-2">
                 <Repeat className="w-3 h-3 animate-spin-slow" />
@@ -804,10 +935,19 @@ export const ActivePlayer: React.FC<ActivePlayerProps> = ({
               <span className="text-[11px] uppercase">TOTAL ELAPSED:</span>
               <span className="font-bold text-white tabular-nums">
                 {formatTimeDigits(totalElapsed)} /{' '}
-                {isRoutineUnlimitedSession ? '∞' : formatTimeDigits(totalRoutineSeconds)}
+                {routine.routineLoopMode === 'time_limit'
+                  ? formatTimeDigits(routine.routineLoopDurationSeconds || 300)
+                  : isRoutineUnlimitedSession || routine.routineLoopMode === 'unlimited'
+                  ? '∞'
+                  : formatTimeDigits(totalRoutineSeconds)}
               </span>
             </div>
             <div className="text-[11px] text-slate-500 uppercase">
+              {routine.routineLoopMode === 'time_limit' && (
+                <span className="text-amber-400 font-semibold mr-2">
+                  {formatTimeDigits(Math.max(0, (routine.routineLoopDurationSeconds || 300) - totalElapsed))} REMAINING
+                </span>
+              )}
               {ttsMuted ? 'Muted' : 'Voice On'}
             </div>
           </div>

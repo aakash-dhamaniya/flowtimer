@@ -27,23 +27,25 @@ export const StageItemInput: React.FC<StageItemInputProps> = ({
   const handleAddDuration = (addedSecs: number) => {
     onChange({
       ...stage,
-      durationSeconds: Math.max(5, stage.durationSeconds + addedSecs),
+      durationSeconds: Math.max(1, stage.durationSeconds + addedSecs),
     });
   };
 
   const handleMinutesChange = (newMinutes: number) => {
     const validMins = Math.max(0, Math.min(180, isNaN(newMinutes) ? 0 : newMinutes));
+    const total = validMins * 60 + seconds;
     onChange({
       ...stage,
-      durationSeconds: Math.max(5, validMins * 60 + seconds),
+      durationSeconds: Math.max(1, total),
     });
   };
 
   const handleSecondsChange = (newSecs: number) => {
     const validSecs = Math.max(0, Math.min(59, isNaN(newSecs) ? 0 : newSecs));
+    const total = minutes * 60 + validSecs;
     onChange({
       ...stage,
-      durationSeconds: Math.max(5, minutes * 60 + validSecs),
+      durationSeconds: Math.max(1, total),
     });
   };
 
@@ -96,7 +98,7 @@ export const StageItemInput: React.FC<StageItemInputProps> = ({
             type="text"
             value={stage.title}
             onChange={(e) => onChange({ ...stage, title: e.target.value })}
-            placeholder="Stage name (e.g. Warmup, Box Breathing)"
+            placeholder="Stage name (e.g. Inhale, Warmup, Hold)"
             className="w-full bg-[#192030] border border-white/[0.08] focus:border-amber-500/50 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all"
           />
         </div>
@@ -105,49 +107,66 @@ export const StageItemInput: React.FC<StageItemInputProps> = ({
         <div className="flex items-center gap-1.5 bg-[#192030] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
           <div className="flex-1 flex items-center justify-center gap-1 font-mono text-sm">
             <input
-              type="number"
-              min="0"
-              max="180"
-              value={minutes}
-              onChange={(e) => handleMinutesChange(parseInt(e.target.value) || 0)}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={minutes.toString()}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                handleMinutesChange(isNaN(num) ? 0 : num);
+              }}
               className="w-8 bg-transparent text-center text-white font-bold outline-none tabular-nums"
+              title="Minutes"
             />
             <span className="text-slate-500 font-bold">:</span>
             <input
-              type="number"
-              min="0"
-              max="59"
-              value={seconds < 10 ? `0${seconds}` : seconds}
-              onChange={(e) => handleSecondsChange(parseInt(e.target.value) || 0)}
-              className="w-8 bg-transparent text-center text-white font-bold outline-none tabular-nums"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={seconds.toString().padStart(2, '0')}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                handleSecondsChange(isNaN(num) ? 0 : num);
+              }}
+              className="w-8 bg-transparent text-center text-amber-300 font-bold outline-none tabular-nums"
+              title="Seconds"
             />
           </div>
         </div>
       </div>
 
       {/* Quick Add Chips & Audio Cue info */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.05]">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between pt-2 border-t border-white/[0.05] flex-wrap gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => handleAddDuration(5)}
+            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
+          >
+            <Plus className="w-2.5 h-2.5" /> 5s
+          </button>
+          <button
+            type="button"
+            onClick={() => handleAddDuration(15)}
+            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
+          >
+            <Plus className="w-2.5 h-2.5" /> 15s
+          </button>
           <button
             type="button"
             onClick={() => handleAddDuration(30)}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
+            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
           >
             <Plus className="w-2.5 h-2.5" /> 30s
           </button>
           <button
             type="button"
             onClick={() => handleAddDuration(60)}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
+            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
           >
             <Plus className="w-2.5 h-2.5" /> 1m
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAddDuration(300)}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
-          >
-            <Plus className="w-2.5 h-2.5" /> 5m
           </button>
         </div>
 

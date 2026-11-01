@@ -2,6 +2,7 @@ export type ChimeType = 'bell' | 'chime' | 'beep' | 'gong' | 'singing-bowl' | 'c
 
 export type StageType = 'stage' | 'repeat';
 export type RepeatMode = 'count' | 'unlimited';
+export type RoutineLoopMode = 'none' | 'unlimited' | 'time_limit';
 
 export interface Stage {
   id: string;
@@ -26,6 +27,8 @@ export interface Routine {
   isFavorite?: boolean;
   completionCount?: number; // Total number of times completed
   lastCompletedAt?: number; // Timestamp of latest completion
+  routineLoopMode?: RoutineLoopMode; // 'none' | 'unlimited' | 'time_limit'
+  routineLoopDurationSeconds?: number; // Total duration limit in seconds when routineLoopMode === 'time_limit'
 }
 
 export interface UserSettings {

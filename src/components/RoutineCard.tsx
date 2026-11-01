@@ -17,6 +17,7 @@ import {
 import { Routine } from '../types/meditation';
 import {
   formatTimeDigits,
+  formatDurationHuman,
   calculateTotalDuration,
   isRoutineUnlimited,
   getNodeDuration,
@@ -49,6 +50,14 @@ export const RoutineCard: React.FC<RoutineCardProps> = ({
   const repeatNodesCount = routine.stages.filter((s) => s.type === 'repeat').length;
   const completions = routine.completionCount || 0;
 
+  const isRoutineLoop =
+    routine.routineLoopMode === 'unlimited' || routine.routineLoopMode === 'time_limit';
+  const effectiveTotalSeconds =
+    routine.routineLoopMode === 'time_limit' && routine.routineLoopDurationSeconds
+      ? routine.routineLoopDurationSeconds
+      : totalSeconds;
+  const isEffectiveUnlimited = routine.routineLoopMode === 'unlimited' || isUnlimited;
+
   const handleOpenEditCount = () => {
     setTempCount(routine.completionCount || 0);
     setIsEditingCount(true);
@@ -67,7 +76,7 @@ export const RoutineCard: React.FC<RoutineCardProps> = ({
       {/* Top Header Row: Status Badge & Execution Triggers */}
       <div className="flex items-start justify-between gap-3 mb-2.5">
         <div>
-          {/* Status Badges Row: Ready + Completion Count */}
+          {/* Status Badges Row: Ready + Completion Count + Routine Loop Badge */}
           <div className="flex flex-wrap items-center gap-1.5 mb-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold tracking-wider uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -76,6 +85,20 @@ export const RoutineCard: React.FC<RoutineCardProps> = ({
                 {repeatNodesCount > 0 ? ` (${repeatNodesCount} LOOP)` : ''}
               </span>
             </div>
+
+            {/* Whole-Routine Chain Loop Indicator */}
+            {routine.routineLoopMode === 'unlimited' && (
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold tracking-wider uppercase">
+                <Repeat className="w-3 h-3 text-emerald-400 animate-spin-slow" />
+                <span>CHAIN: ∞ LOOP</span>
+              </div>
+            )}
+            {routine.routineLoopMode === 'time_limit' && (
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[10px] font-bold tracking-wider uppercase">
+                <Repeat className="w-3 h-3 text-amber-400" />
+                <span>CHAIN: {formatDurationHuman(routine.routineLoopDurationSeconds || 300)} LOOP</span>
+              </div>
+            )}
 
             {/* Interactive Completion Count Badge */}
             <button
@@ -225,12 +248,19 @@ export const RoutineCard: React.FC<RoutineCardProps> = ({
 
       {/* Card Footer: Total Duration */}
       <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-xs">
-        <span className="flex items-center gap-1.5 text-slate-400 font-mono text-[10px] tracking-wider uppercase">
-          <Clock className="w-3.5 h-3.5 text-slate-500" />
-          TOTAL DURATION
-        </span>
+        <div className="flex flex-col">
+          <span className="flex items-center gap-1.5 text-slate-400 font-mono text-[10px] tracking-wider uppercase">
+            <Clock className="w-3.5 h-3.5 text-slate-500" />
+            {routine.routineLoopMode === 'time_limit' ? 'LOOP TOTAL DURATION' : 'TOTAL DURATION'}
+          </span>
+          {isRoutineLoop && (
+            <span className="text-[10px] font-mono text-slate-400">
+              1 cycle: {formatTimeDigits(totalSeconds)}
+            </span>
+          )}
+        </div>
         <div className="font-mono text-[13px] font-bold text-white bg-[#080A0F] px-2.5 py-1 rounded border border-white/[0.08] tabular-nums tracking-wide">
-          {isUnlimited ? '∞ UNLIMITED' : `${formatTimeDigits(totalSeconds)}.00`}
+          {isEffectiveUnlimited ? '∞ UNLIMITED' : `${formatTimeDigits(effectiveTotalSeconds)}.00`}
         </div>
       </div>
 
