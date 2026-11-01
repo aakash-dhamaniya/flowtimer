@@ -1,6 +1,8 @@
-import React from 'react';
-import { Trash2, ChevronUp, ChevronDown, GripVertical, Bell, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, ChevronUp, ChevronDown, GripVertical, Bell, Plus, Minus, Clock } from 'lucide-react';
 import { Stage } from '../types/meditation';
+import { formatTimeDigits } from '../utils/timeUtils';
+import { TimePickerModal } from './TimePickerModal';
 
 interface StageItemInputProps {
   stage: Stage;
@@ -21,33 +23,25 @@ export const StageItemInput: React.FC<StageItemInputProps> = ({
   onMoveUp,
   onMoveDown,
 }) => {
-  const minutes = Math.floor(stage.durationSeconds / 60);
-  const seconds = stage.durationSeconds % 60;
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-  const handleAddDuration = (addedSecs: number) => {
+  const handleStepSeconds = (delta: number) => {
     onChange({
       ...stage,
-      durationSeconds: Math.max(1, stage.durationSeconds + addedSecs),
+      durationSeconds: Math.max(1, stage.durationSeconds + delta),
     });
   };
 
-  const handleMinutesChange = (newMinutes: number) => {
-    const validMins = Math.max(0, Math.min(180, isNaN(newMinutes) ? 0 : newMinutes));
-    const total = validMins * 60 + seconds;
-    onChange({
-      ...stage,
-      durationSeconds: Math.max(1, total),
-    });
-  };
-
-  const handleSecondsChange = (newSecs: number) => {
-    const validSecs = Math.max(0, Math.min(59, isNaN(newSecs) ? 0 : newSecs));
-    const total = minutes * 60 + validSecs;
-    onChange({
-      ...stage,
-      durationSeconds: Math.max(1, total),
-    });
-  };
+  const ONE_TAP_PRESETS = [
+    { label: '4s', sec: 4 },
+    { label: '7s', sec: 7 },
+    { label: '8s', sec: 8 },
+    { label: '15s', sec: 15 },
+    { label: '30s', sec: 30 },
+    { label: '1m', sec: 60 },
+    { label: '2m', sec: 120 },
+    { label: '5m', sec: 300 },
+  ];
 
   return (
     <div className="bg-[#111520] border border-white/[0.08] hover:border-white/[0.14] rounded-2xl p-4 transition-all">
@@ -91,9 +85,9 @@ export const StageItemInput: React.FC<StageItemInputProps> = ({
       </div>
 
       {/* Stage Title and Duration Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 mb-2.5">
         {/* Stage Name */}
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-3">
           <input
             type="text"
             value={stage.title}
@@ -103,78 +97,105 @@ export const StageItemInput: React.FC<StageItemInputProps> = ({
           />
         </div>
 
-        {/* Duration Input / Stepper */}
-        <div className="flex items-center gap-1.5 bg-[#192030] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
-          <div className="flex-1 flex items-center justify-center gap-1 font-mono text-sm">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={minutes.toString()}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
-                handleMinutesChange(isNaN(num) ? 0 : num);
-              }}
-              className="w-8 bg-transparent text-center text-white font-bold outline-none tabular-nums"
-              title="Minutes"
-            />
-            <span className="text-slate-500 font-bold">:</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={seconds.toString().padStart(2, '0')}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
-                handleSecondsChange(isNaN(num) ? 0 : num);
-              }}
-              className="w-8 bg-transparent text-center text-amber-300 font-bold outline-none tabular-nums"
-              title="Seconds"
-            />
+        {/* Tactile Duration Stepper & Time Pill */}
+        <div className="sm:col-span-2 flex items-center justify-between bg-[#192030] border border-white/[0.08] hover:border-amber-500/30 rounded-xl p-1 gap-1 transition-all">
+          {/* -1s button */}
+          <button
+            type="button"
+            onClick={() => handleStepSeconds(-1)}
+            className="w-8 h-8 rounded-lg bg-[#111520] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 hover:text-white flex items-center justify-center active:scale-95 transition-all text-xs"
+            title="Decrease 1 second"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Time Display Button - Tap to open Full TimePicker */}
+          <button
+            type="button"
+            onClick={() => setIsPickerOpen(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg bg-[#111520] hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 font-mono text-sm font-bold tabular-nums active:scale-95 transition-all group"
+            title="Tap to change duration"
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+            <span>{formatTimeDigits(stage.durationSeconds)}</span>
+          </button>
+
+          {/* +1s button */}
+          <button
+            type="button"
+            onClick={() => handleStepSeconds(1)}
+            className="w-8 h-8 rounded-lg bg-[#111520] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 hover:text-white flex items-center justify-center active:scale-95 transition-all text-xs"
+            title="Increase 1 second"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* One-Tap Quick Presets Row (Breathwork & Standard Times) */}
+      <div className="space-y-2 pt-2 border-t border-white/[0.05]">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] font-mono font-bold text-slate-500 uppercase mr-1">
+            ONE-TAP:
+          </span>
+          {ONE_TAP_PRESETS.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => onChange({ ...stage, durationSeconds: item.sec })}
+              className={`px-2 py-1 rounded-md text-[11px] font-mono font-bold transition-all active:scale-95 ${
+                stage.durationSeconds === item.sec
+                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                  : 'bg-[#192030] text-slate-300 hover:text-white border border-white/[0.06] hover:border-amber-500/30'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Additional Increments & Cues */}
+        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-500">ADD:</span>
+            <button
+              type="button"
+              onClick={() => handleStepSeconds(5)}
+              className="px-1.5 py-0.5 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 text-[10px] font-semibold active:scale-95"
+            >
+              +5s
+            </button>
+            <button
+              type="button"
+              onClick={() => handleStepSeconds(15)}
+              className="px-1.5 py-0.5 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 text-[10px] font-semibold active:scale-95"
+            >
+              +15s
+            </button>
+            <button
+              type="button"
+              onClick={() => handleStepSeconds(60)}
+              className="px-1.5 py-0.5 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 text-[10px] font-semibold active:scale-95"
+            >
+              +1m
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Bell className="w-3 h-3 text-amber-500" />
+            <span>BELL + VOICE</span>
           </div>
         </div>
       </div>
 
-      {/* Quick Add Chips & Audio Cue info */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.05] flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => handleAddDuration(5)}
-            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
-          >
-            <Plus className="w-2.5 h-2.5" /> 5s
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAddDuration(15)}
-            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
-          >
-            <Plus className="w-2.5 h-2.5" /> 15s
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAddDuration(30)}
-            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
-          >
-            <Plus className="w-2.5 h-2.5" /> 30s
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAddDuration(60)}
-            className="flex items-center gap-0.5 px-2 py-1 rounded bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-[10px] font-semibold transition-all active:scale-95"
-          >
-            <Plus className="w-2.5 h-2.5" /> 1m
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
-          <Bell className="w-3 h-3 text-amber-500" />
-          <span>BELL + VOICE</span>
-        </div>
-      </div>
+      {/* Modal for full picker if user wants custom minutes / seconds */}
+      <TimePickerModal
+        isOpen={isPickerOpen}
+        title={`Set Duration: ${stage.title || `Stage ${index + 1}`}`}
+        initialSeconds={stage.durationSeconds}
+        onSave={(newSecs) => onChange({ ...stage, durationSeconds: newSecs })}
+        onClose={() => setIsPickerOpen(false)}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Repeat,
   Trash2,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Stage } from '../types/meditation';
 import { formatTimeDigits, formatDurationHuman } from '../utils/timeUtils';
+import { TimePickerModal } from './TimePickerModal';
 
 interface RepeatNodeInputProps {
   stage: Stage;
@@ -40,6 +41,8 @@ export const RepeatNodeInput: React.FC<RepeatNodeInputProps> = ({
   onMoveUp,
   onMoveDown,
 }) => {
+  const [pickerChildIdx, setPickerChildIdx] = useState<number | null>(null);
+
   const nestedStages = stage.nestedStages || [];
   const repeatMode = stage.repeatMode || 'count';
   const repeatCount = stage.repeatCount || 4;
@@ -192,7 +195,7 @@ export const RepeatNodeInput: React.FC<RepeatNodeInputProps> = ({
           <span className="font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             LOOP REPETITION MODE
           </span>
-          <span className="font-mono text-[11px] font-bold text-amber-400">
+          <span className="font-mono text-span text-[11px] font-bold text-amber-400">
             {repeatMode === 'unlimited' ? '∞ UNLIMITED' : `${repeatCount} CYCLES`}
           </span>
         </div>
@@ -321,9 +324,9 @@ export const RepeatNodeInput: React.FC<RepeatNodeInputProps> = ({
           {nestedStages.map((child, cIdx) => (
             <div
               key={child.id || cIdx}
-              className="bg-[#192030] border border-white/[0.08] rounded-xl p-2.5 flex items-center justify-between gap-2"
+              className="bg-[#192030] border border-white/[0.08] rounded-xl p-2.5 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap"
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-1 min-w-[120px]">
                 <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
                   {cIdx + 1}
                 </span>
@@ -339,85 +342,102 @@ export const RepeatNodeInput: React.FC<RepeatNodeInputProps> = ({
                 />
               </div>
 
-              {/* Step Duration Stepper */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleUpdateChildStage(cIdx, {
-                      ...child,
-                      durationSeconds: Math.max(1, child.durationSeconds - 1),
-                    })
-                  }
-                  className="w-6 h-6 rounded bg-[#111520] text-slate-400 hover:text-white flex items-center justify-center text-xs active:scale-95"
-                >
-                  -
-                </button>
-
-                <div className="flex items-center bg-[#111520] px-1 py-0.5 rounded border border-white/[0.08]">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={child.durationSeconds.toString()}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
+              {/* Step Duration Stepper & One-Tap chips */}
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
                       handleUpdateChildStage(cIdx, {
                         ...child,
-                        durationSeconds: Math.max(1, isNaN(num) ? 1 : num),
-                      });
-                    }}
-                    className="w-7 bg-transparent font-mono text-xs font-bold text-amber-300 text-center outline-none tabular-nums"
-                  />
-                  <span className="text-[10px] text-amber-400/80 font-mono pr-0.5">s</span>
+                        durationSeconds: Math.max(1, child.durationSeconds - 1),
+                      })
+                    }
+                    className="w-7 h-7 rounded bg-[#111520] hover:bg-white/[0.08] text-slate-300 hover:text-white flex items-center justify-center text-[10px] font-bold active:scale-95 transition-all"
+                    title="Minus 1s"
+                  >
+                    -1s
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPickerChildIdx(cIdx)}
+                    className="px-2.5 py-1 rounded bg-[#111520] border border-amber-500/30 text-amber-300 font-mono text-xs font-bold hover:bg-amber-500/20 active:scale-95 transition-all"
+                    title="Tap to change duration"
+                  >
+                    {child.durationSeconds}s
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateChildStage(cIdx, {
+                        ...child,
+                        durationSeconds: child.durationSeconds + 1,
+                      })
+                    }
+                    className="w-7 h-7 rounded bg-[#111520] hover:bg-white/[0.08] text-slate-300 hover:text-white flex items-center justify-center text-[10px] font-bold active:scale-95 transition-all"
+                    title="Plus 1s"
+                  >
+                    +1s
+                  </button>
+
+                  {/* Move & Delete */}
+                  <div className="flex items-center ml-1 border-l border-white/[0.08] pl-1">
+                    {cIdx > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMoveChildStage(cIdx, cIdx - 1)}
+                        className="p-1 text-slate-500 hover:text-white"
+                        title="Move Up"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                    )}
+                    {cIdx < nestedStages.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMoveChildStage(cIdx, cIdx + 1)}
+                        className="p-1 text-slate-500 hover:text-white"
+                        title="Move Down"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    )}
+                    {nestedStages.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteChildStage(cIdx)}
+                        className="p-1 text-slate-500 hover:text-rose-400"
+                        title="Delete Step"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleUpdateChildStage(cIdx, {
-                      ...child,
-                      durationSeconds: child.durationSeconds + 1,
-                    })
-                  }
-                  className="w-6 h-6 rounded bg-[#111520] text-slate-400 hover:text-white flex items-center justify-center text-xs active:scale-95"
-                >
-                  +
-                </button>
-
-                {/* Move & Delete */}
-                <div className="flex items-center ml-1 border-l border-white/[0.08] pl-1">
-                  {cIdx > 0 && (
+                {/* Fast Breath Preset Chips: 4s, 7s, 8s, 16s */}
+                <div className="flex items-center gap-1">
+                  {[4, 7, 8, 16].map((sec) => (
                     <button
+                      key={sec}
                       type="button"
-                      onClick={() => handleMoveChildStage(cIdx, cIdx - 1)}
-                      className="p-1 text-slate-500 hover:text-white"
-                      title="Move Up"
+                      onClick={() =>
+                        handleUpdateChildStage(cIdx, {
+                          ...child,
+                          durationSeconds: sec,
+                        })
+                      }
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all active:scale-95 ${
+                        child.durationSeconds === sec
+                          ? 'bg-amber-500 text-black shadow-sm'
+                          : 'bg-[#111520] text-slate-400 hover:text-white border border-white/[0.06]'
+                      }`}
                     >
-                      <ChevronUp className="w-3 h-3" />
+                      {sec}s
                     </button>
-                  )}
-                  {cIdx < nestedStages.length - 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleMoveChildStage(cIdx, cIdx + 1)}
-                      className="p-1 text-slate-500 hover:text-white"
-                      title="Move Down"
-                    >
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-                  )}
-                  {nestedStages.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteChildStage(cIdx)}
-                      className="p-1 text-slate-500 hover:text-rose-400"
-                      title="Delete Step"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
@@ -465,6 +485,23 @@ export const RepeatNodeInput: React.FC<RepeatNodeInputProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Child Step TimePickerModal */}
+      {pickerChildIdx !== null && nestedStages[pickerChildIdx] && (
+        <TimePickerModal
+          isOpen={true}
+          title={`Set Duration: ${nestedStages[pickerChildIdx].title || `Step ${pickerChildIdx + 1}`}`}
+          initialSeconds={nestedStages[pickerChildIdx].durationSeconds}
+          onSave={(newSecs) => {
+            handleUpdateChildStage(pickerChildIdx, {
+              ...nestedStages[pickerChildIdx],
+              durationSeconds: newSecs,
+            });
+            setPickerChildIdx(null);
+          }}
+          onClose={() => setPickerChildIdx(null)}
+        />
+      )}
     </div>
   );
 };

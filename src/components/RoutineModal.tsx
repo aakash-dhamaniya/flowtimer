@@ -3,9 +3,11 @@ import { Plus, AlertCircle, Edit3, Repeat, Trophy, Minus, Infinity as InfinityIc
 import { Routine, Stage, RoutineLoopMode } from '../types/meditation';
 import { StageItemInput } from './StageItemInput';
 import { RepeatNodeInput } from './RepeatNodeInput';
+import { TimePickerModal } from './TimePickerModal';
 import {
   calculateTotalDuration,
   formatDurationHuman,
+  formatTimeDigits,
   isRoutineUnlimited,
 } from '../utils/timeUtils';
 
@@ -87,6 +89,7 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
   const [completionCount, setCompletionCount] = useState(0);
   const [routineLoopMode, setRoutineLoopMode] = useState<RoutineLoopMode>('none');
   const [routineLoopDurationSeconds, setRoutineLoopDurationSeconds] = useState(300);
+  const [isLoopPickerOpen, setIsLoopPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -306,38 +309,38 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
             <div className="space-y-3 pt-1 border-t border-white/[0.06]">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-300">Total Loop Duration:</span>
-                <div className="flex items-center gap-1.5 bg-[#192030] border border-white/[0.08] rounded-xl px-2.5 py-1.5">
-                  <div className="flex items-center justify-center gap-1 font-mono text-sm">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={Math.floor(routineLoopDurationSeconds / 60).toString()}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => {
-                        const mins = parseInt(e.target.value.replace(/\D/g, ''), 10) || 0;
-                        const secs = routineLoopDurationSeconds % 60;
-                        setRoutineLoopDurationSeconds(Math.max(1, mins * 60 + secs));
-                      }}
-                      className="w-8 bg-transparent text-center text-white font-bold outline-none tabular-nums"
-                      title="Minutes"
-                    />
-                    <span className="text-slate-500 font-bold">:</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={(routineLoopDurationSeconds % 60).toString().padStart(2, '0')}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => {
-                        const mins = Math.floor(routineLoopDurationSeconds / 60);
-                        const secs = Math.min(59, parseInt(e.target.value.replace(/\D/g, ''), 10) || 0);
-                        setRoutineLoopDurationSeconds(Math.max(1, mins * 60 + secs));
-                      }}
-                      className="w-8 bg-transparent text-center text-amber-300 font-bold outline-none tabular-nums"
-                      title="Seconds"
-                    />
-                  </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRoutineLoopDurationSeconds((prev) => Math.max(1, prev - 60))
+                    }
+                    className="w-8 h-8 rounded-lg bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-xs font-bold active:scale-95 transition-all"
+                    title="Minus 1m"
+                  >
+                    -1m
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsLoopPickerOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-[#192030] hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono text-sm font-bold tabular-nums active:scale-95 transition-all flex items-center gap-1.5 group"
+                    title="Tap to change duration"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span>{formatTimeDigits(routineLoopDurationSeconds)}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRoutineLoopDurationSeconds((prev) => prev + 60)
+                    }
+                    className="w-8 h-8 rounded-lg bg-[#192030] hover:bg-white/[0.08] text-slate-300 font-mono text-xs font-bold active:scale-95 transition-all"
+                    title="Plus 1m"
+                  >
+                    +1m
+                  </button>
                 </div>
               </div>
 
@@ -594,6 +597,14 @@ export const RoutineModal: React.FC<RoutineModalProps> = ({
           </button>
         </div>
       </div>
+
+      <TimePickerModal
+        isOpen={isLoopPickerOpen}
+        title="Set Chain Loop Duration"
+        initialSeconds={routineLoopDurationSeconds}
+        onSave={(newSecs) => setRoutineLoopDurationSeconds(newSecs)}
+        onClose={() => setIsLoopPickerOpen(false)}
+      />
     </div>
   );
 };
